@@ -7,17 +7,19 @@ class Home(Process):
     HOST = "localhost"
 
     # Initialization of a home
-    def __init__(self, port, prod, cons, policy):
+    def __init__(self, port, energy, prod, cons, policy):
         super().__init__()
         self.port = port
+        self.energy = energy
         self.production = prod 
         self.consumption = cons
+        self.queues = []
         if (policy in range(3)):
             self.policy = policy
         else:
             print("Choose a valid policy.")
             sys.exit(1)
-
+   
     # Choice of action
     def choice(self):
         answer = 1
@@ -56,5 +58,44 @@ class Home(Process):
     # Main function
     def run(self):
         print("Home")
-        self.market_interact()
+        # self.market_interact()
+        self.manage_energy()
+
+    def manage_energy(self):
+        self.energy += self.production - self.consumption
+        if (self.energy > 0):
+            self.give_energy()
+        elif (self.energy < 0):
+            self.get_energy()
+
+    def give_energy(self):
+        if self.policy == 1:
+            for queue in self.queues:
+                if self.energy > 0:
+                    print("J'ai", self.energy)
+                    queue[1].send(b"?")
+                    m, t = queue[0].receive()
+                    needed = int(m.decode())
+                    if (self.energy - needed >= 0):
+                        queue[1].send(str(needed).encode())
+                        self.energy -= needed
+                    else:
+                        queue[1].send(str(self.energy).encode())
+                        self.energy = 0
+                else:
+                    queue[1].send(b"!")
+                print("Il me reste", self.energy)
+
+    def get_energy(self):
+        for queue in self.queues:
+            print("Il me faut", self.energy)
+            if self.energy < 0:
+                m, t = queue[0].receive()
+                if (m.decode() == "?"):
+                    queue[1].send(str(-self.energy).encode())
+                    m, t = queue[0].receive()
+                    self.energy += int(m.decode())
+            else:
+                queue[0].receive()
+            print("J'ai maintenant", self.energy)
 
