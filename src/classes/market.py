@@ -12,6 +12,7 @@ class Market(Process):
     def __init__(self, port, P_0, max_threads):
         super().__init__()
         self.port = port
+        self.energy_price = 0.17 
         self.P = P_0 
         self.max_threads = max_threads
     
@@ -28,20 +29,21 @@ class Market(Process):
             if action == "1":
 
                 # Sending the current price of 1 kWh of energy
-                price = 4.23
-                client_socket.send(str(price).encode())
+                client_socket.send(str(self.energy_price).encode())
                 
                 # Receiving the amount of energy needed by the home
                 energy_needed = client_socket.recv(1024).decode()[0]
-                if (energy_needed != "0"):
-                    print("Transaction done:", energy_needed, "kWh bought for "+str(int(energy_needed)*price)+".")
-                else:
-                    print("No transaction done.")
+                print("Transaction done:", energy_needed, "kWh bought for "+str(int(energy_needed)*self.energy_price)+".")
             
             # Home wants to sell energy
             if action == "2":
-                price = 4.5
-                client_socket.send(str(price).encode())
+                
+                # Sending the current price of 1 kWh of energy
+                client_socket.send(str(self.energy_price).encode())
+
+                # Receiving the amount of energy sold by the home
+                energy_sold = client_socket.recv(1024).decode()
+                print("Transaction done:", energy_sold, "kWh sold for "+str(int(energy_sold)*self.energy_price)+"€.")
 
         print("End of connection with home: ", address)
     

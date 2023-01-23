@@ -1,7 +1,7 @@
 from classes import home, market, weather, external
 import random, time, sysv_ipc
 
-NUMBER_HOMES = 2
+NUMBER_HOMES = 1
 
 if __name__ == "__main__":
     port = random.randint(1000,2000)
@@ -11,8 +11,8 @@ if __name__ == "__main__":
     homes = []
     
     # Initialization of the homes
-    homes.append(home.Home(port, 1000, 100, 80, 1))
-    homes.append(home.Home(port, 0, 80, 100, 1))
+    homes.append(home.Home(port, 1000, 100, 100, 80, 3))
+    # homes.append(home.Home(port, 0, 100, 80, 100, 3))
     
     # Initialization of the queues
     for i in range(NUMBER_HOMES):
