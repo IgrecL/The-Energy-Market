@@ -25,7 +25,7 @@ class Home(Process):
     # Main function
     def run(self):
         for t in range(9999999):
-            print(self.name,  "Temperature : " + "{:.1f}".format(self.temperature.value) + "°C")
+            # print(self.name,  "Temperature : " + "{:.1f}".format(self.temperature.value) + "°C")
             time.sleep(1)
         # self.manage_energy()
 

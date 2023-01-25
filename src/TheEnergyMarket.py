@@ -6,15 +6,17 @@ NUMBER_HOMES = 1
 
 if __name__ == "__main__":
     port = random.randint(1000,2000)
-    m = market.Market(port, 2, 2)
-    m.start()
-    time.sleep(0.1)
-    homes = []
     
     # Shared memory between the homes, the weather and the market
     temperature = Value('f', 10.0)
     weather = weather.Weather(temperature)
     weather.start()
+
+    # Initialization of the market
+    m = market.Market(port, temperature, 1.74, 2)
+    m.start()
+    time.sleep(0.1)
+    homes = []
 
     # Initialization of the homes
     homes.append(home.Home(port, 1, temperature, 1000, 100, 100, 80, 3))
