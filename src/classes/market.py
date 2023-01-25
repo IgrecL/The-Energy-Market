@@ -2,7 +2,6 @@ from multiprocessing import Process
 from classes.external import External
 import time, socket, select, concurrent.futures
 
-
 class Market(Process):
 
     HOST = "localhost"
@@ -20,36 +19,25 @@ class Market(Process):
     def socket_handler(self, client_socket, address):
         global serve
         with client_socket:
-            print("Connected to home: ", address)
+            print("[Market] Home connected:", address)
             
             # Receiving what home wants to do
             action = client_socket.recv(1024).decode()[0]
 
             # Home wants to buy energy 
             if action == "1":
-
-                # Sending the current price of 1 kWh of energy
                 client_socket.send(str(self.energy_price).encode())
-                
-                # Receiving the amount of energy needed by the home
                 energy_needed = client_socket.recv(1024).decode()[0]
-                print("Transaction done:", energy_needed, "kWh bought for "+str(int(energy_needed)*self.energy_price)+".")
             
             # Home wants to sell energy
             if action == "2":
-                
-                # Sending the current price of 1 kWh of energy
                 client_socket.send(str(self.energy_price).encode())
-
-                # Receiving the amount of energy sold by the home
                 energy_sold = client_socket.recv(1024).decode()
-                print("Transaction done:", energy_sold, "kWh sold for "+str(int(energy_sold)*self.energy_price)+"€.")
 
-        print("End of connection with home: ", address)
+        print("[Market] Home Disconnected:", address)
     
     # Main function
     def run(self):
-        print("Market")
         
         # Lauching child process external
         external = External()

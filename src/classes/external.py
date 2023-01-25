@@ -7,4 +7,4 @@ class External(Process):
         self.event = False 
 
     def run(self):
-        print("External")
+        a = 1 
