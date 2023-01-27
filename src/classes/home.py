@@ -58,8 +58,10 @@ class Home(Process):
             t2 = time.time()
             if self.policy == 2:
                 tk = time.time()
+                cont = True
                 while (tk - t2) < self.STEP2:
-                    self.give2()
+                    if cont:
+                        cont = self.give2()
                     tk = time.time()
 
             if self.policy == 2 or self.policy == 3:
@@ -88,6 +90,7 @@ class Home(Process):
         # Buying to the market
         if (self.energy < 0):
             print(self.name, "Not enough free energy, I'll buy it from the market")
+            self.buy()
        
     # Giving energy for free to other homes
     def give1(self):
@@ -114,13 +117,16 @@ class Home(Process):
             if needed < self.energy:
                 self.queue.send(str(needed).encode(), type = 10 + getter_id)
                 self.energy -= needed
+                return True
             else:
                 self.queue.send(str(self.energy).encode(), type = 10 + getter_id)
                 self.energy = 0
+                return False
 
         # We have to retreive the packet if no one took it
         except sysv_ipc.BusyError:
             self.queue.receive(type = 2)
+            return False
 
     # Selling to the market
     def sell(self):
@@ -185,7 +191,14 @@ class Home(Process):
             price = client_socket.recv(1024).decode()
 
             # Sending kWh of energy needed
-            client_socket.send(str(self.energy).encode())
-            self.money -= self.energy * float(price)
-            print(self.name, "J'ai acheté", -self.energy, "kWh au marché au prix de", price, "€.")
-            self.energy = 0
+            if -self.energy * float(price) < self.money:
+                client_socket.send(str(self.energy).encode())
+                self.money += self.energy * float(price)
+                print(self.name, "I bought", -self.energy, "kWh from the market for the price of", price, "€.")
+                self.energy = 0
+            else:
+                client_socket.send(b"0")
+                time.sleep(0.01)
+                print(self.name, "BANKRUPTCY")
+                exit(1)
+

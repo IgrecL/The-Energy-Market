@@ -51,7 +51,7 @@ class Market(Process):
             # Home wants to sell energy
             if action == "2":
                 client_socket.send(str(self.P).encode())
-                energy_sold = client_socket.recv(1024).decode()
+                energy_sold = client_socket.recv(1024).decode()[0]
 
         print("[Market] Home Disconnected:", address)
     
