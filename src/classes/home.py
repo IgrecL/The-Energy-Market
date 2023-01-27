@@ -4,8 +4,11 @@ import sys, socket, time, sysv_ipc
 class Home(Process):
 
     HOST = "localhost"
-    WAITING_TIME = 0.1
-    BUYING_TIME = 0.012
+    LOOP_DURATION = 1
+    STEP0 = 0.1
+    STEP1 = 0.1
+    STEP2 = 0.5
+    STEP3 = 0.2
     ACK_TIME = 0.01
 
     # Initialization of a home
@@ -31,59 +34,93 @@ class Home(Process):
         #for t in range(9999999):
         #    # print(self.name,  "Temperature : " + "{:.1f}".format(self.temperature.value) + "°C")
         #    time.sleep(1)
+        t0 = time.time()
         while True:
-            self.manage_energy() # Lasts WAITING_TIME + BUYING_TIME
-            time.sleep(3 - self.WAITING_TIME - self.BUYING_TIME)
+            if (time.time() - t0 >= self.LOOP_DURATION):
+                print(self.name, "---------------")
+                self.manage_energy()
+                t0 = time.time()
 
     def manage_energy(self):
+        ti = time.time()
         self.energy += self.production - self.consumption
-        
+        time.sleep(self.STEP0 - (time.time() - ti)) 
+        t0 = time.time()
+
         # Has too much energy
         if (self.energy > 0):
-            if self.policy == 1 or self.policy == 2:
-                self.give(self.energy)
-                time.sleep(self.WAITING_TIME + self.BUYING_TIME)
-            elif self.policy == 3:
+
+            if self.policy == 1:
+                self.give1()
+            t1 = time.time()
+            time.sleep(self.STEP1 - (t1 - t0))
+
+            t2 = time.time()
+            if self.policy == 2:
+                tk = time.time()
+                while (tk - t2) < self.STEP2:
+                    self.give2()
+                    tk = time.time()
+
+            if self.policy == 2 or self.policy == 3:
                 self.sell()
 
-        # Needs energy
-        elif (self.energy < 0):
-            time.sleep(self.WAITING_TIME)
-            self.get()
-
-        else:
-            print(self.name, "Nothing")
-    
-    # Giving energy for free to other homes
-    def give(self, amount):
-        if self.policy == 1:
-            print(self.name, "Sending ", amount, "kWh")
-            self.queue.send(str(self.energy).encode(), type = 1) # Energy giveaway
-            self.energy = 0
-            print(self.name, "I now have", self.energy, "kWh")
-        if self.policy == 2:
-            # Asking if someone needs energy
-            print(self.name, "Who wants energy?")
-            self.queue.send(str(self.id).encode(), type = 2)
-            time.sleep(self.WAITING_TIME + self.ACK_TIME)
-
-            # Checking whether someone responded
+        # Searching for free energy (policy 1)
+        if (self.energy < 0):
+            print(self.name, "I need", -self.energy, "kWh (step 1)")
+            t1 = time.time()
             cont = True
-            while cont:
-                try:
-                    m, t = self.queue.receive(block = False, type = 10 + self.id)
-                    m_list = m.decode().split(":")
-                    getter_id = int(m_list[0])
-                    needed = int(m_list[1])
-                    print(self.name, "Received:", str(getter_id) + ":" + str(needed))
+            while (t1 - t0) < self.STEP1:
+                if cont:
+                    cont = self.get1()
+                t1 = time.time()
 
-                    # Sending the available energy to the home through its id
-                    if needed < self.energy:
-                        self.queue.send(str(needed).encode(), type = 10 + getter_id)
-                    else:
-                        self.queue.send(str(self.energy).encode(), type = 10 + getter_id)
-                except sysv_ipc.BusyError:
-                    cont = False
+        # Searching for free energy (policy 2) 
+        if (self.energy < 0):
+            print(self.name, "I need", -self.energy, "kWh (step 2)")
+            t2 = time.time()
+            cont = True
+            while (t2 - t1) < self.STEP2:
+                if cont:
+                    cont = self.get2()
+                t2 = time.time()
+
+        # Buying to the market
+        if (self.energy < 0):
+            print(self.name, "Not enough free energy, I'll buy it from the market")
+       
+    # Giving energy for free to other homes
+    def give1(self):
+        print(self.name, "Sending ", self.energy, "kWh")
+        self.queue.send(str(self.energy).encode(), type = 1)
+        self.energy = 0
+        print(self.name, "I now have", self.energy, "kWh")
+    
+    # Giving energy for free if someone needs it
+    def give2(self):
+        self.queue.send(str(self.id).encode(), type = 2)
+        time.sleep(self.ACK_TIME)
+
+        # Checking whether someone responded
+        try:
+            m, t = self.queue.receive(block = False, type = 10 + self.id)
+            print(self.name, "Someone wants my energy!")
+            m_list = m.decode().split(":")
+            getter_id = int(m_list[0])
+            needed = int(m_list[1])
+            print(self.name, "Received:", str(getter_id) + ":" + str(needed))
+
+            # Sending the available energy to the home through its id
+            if needed < self.energy:
+                self.queue.send(str(needed).encode(), type = 10 + getter_id)
+                self.energy -= needed
+            else:
+                self.queue.send(str(self.energy).encode(), type = 10 + getter_id)
+                self.energy = 0
+
+        # We have to retreive the packet if no one took it
+        except sysv_ipc.BusyError:
+            self.queue.receive(type = 2)
 
     # Selling to the market
     def sell(self):
@@ -102,54 +139,41 @@ class Home(Process):
                 self.money += self.energy * price
                 self.energy = 0
 
-    # Get energy from other homes 
-    def get(self):
-        print(self.name, "I need", -self.energy, "kWh")
-        
-        # Loop for free energy 
-        cont = True
-        while cont:
-            try:
-                m, t = self.queue.receive(block = False, type = 1)
-                self.energy += int(m.decode())
-                if self.energy >= 0:
-                    time.sleep(self.BUYING_TIME)
-                    cont = False
-                else:
-                    print(self.name, "Now I need", -self.energy, "kWh")
-            except sysv_ipc.BusyError:
-                cont = False
-        
-        # Loop for energy given by homes of policy 2 if not enough energy
-        cont = (self.energy < 0)
-        while cont:
-            try:
-                # Checking if a home of policy 2 wants to know if someone needs energy 
-                m, t = self.queue.receive(block = False, type = 2)
-                giver_id = int(m.decode()) # The packet contains the id of the giver
+    def get1(self):
+        try:
+            m, t = self.queue.receive(block = False, type = 1)
+            self.energy += int(m.decode())
+            if self.energy >= 0:
+                return False
+            else:
+                print(self.name, "Now I need", -self.energy, "kWh")
+                return True
+        except sysv_ipc.BusyError:
+            return True
 
-                # Sending a request to this giver, with a header containing our id
-                self.queue.send((str(self.id) + ":" + str(-self.energy)).encode(), type = 10 + giver_id)
-                print(self.name, "Sent info to home", giver_id)
+    def get2(self):
+        try:
+            # Checking if a home of policy 2 wants to know if someone needs energy 
+            m, t = self.queue.receive(block = False, type = 2)
+            giver_id = int(m.decode()) # The packet contains the id of the giver
 
-                # Adding the energy received
-                m, t = self.queue.receive(block = True, type = 10 + self.id)
-                self.energy += int(m.decode())
-                print(self.name, "Received", m.decode(), "kWh. I'm now at", self.energy, "kWh")
-                
-                # Checking whether the given energy is enough
-                if self.energy >= 0:
-                    time.sleep(self.BUYING_TIME)
-                    cont = False
-                else:
-                    print(self.name, "I need", -self.energy, "kWh")
-            except:
-                cont = False
-        
-        # If home still needs energy, buying to the market
-        if self.energy < 0:
-            print(self.name, "Pas assez d'énergie gratuite, j'achète au market")
-            self.buy()
+            # Sending a request to this giver, with a header containing our id
+            self.queue.send((str(self.id) + ":" + str(-self.energy)).encode(), type = 10 + giver_id)
+            print(self.name, "Sent info to home", giver_id)
+
+            # Adding the energy received
+            m, t = self.queue.receive(block = True, type = 10 + self.id)
+            self.energy += int(m.decode())
+            print(self.name, "Received", m.decode(), "kWh. I'm now at", self.energy, "kWh")
+            
+            # Checking whether the given energy is enough
+            if self.energy >= 0:
+                return False
+            else:
+                print(self.name, "I need", -self.energy, "kWh")
+                return True
+        except:
+            return True
 
     # Buying to the market
     def buy(self):
