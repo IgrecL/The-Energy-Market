@@ -38,7 +38,7 @@ class Market(Process):
     def socket_handler(self, client_socket, address):
         global serve
         with client_socket:
-            print("[Market] Home connected:", address)
+            # print("[Market] Home connected:", address)
             
             # Receiving what home wants to do
             action = client_socket.recv(1024).decode()[0]
@@ -53,7 +53,7 @@ class Market(Process):
                 client_socket.send(str(self.P).encode())
                 energy_sold = client_socket.recv(1024).decode()[0]
 
-        print("[Market] Home Disconnected:", address)
+        # print("[Market] Home Disconnected:", address)
     
               
     # Main function
