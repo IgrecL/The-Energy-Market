@@ -1,11 +1,13 @@
 from multiprocessing import Process
 import time, signal, os, random
 
+LOOP_DURATION = 1
+
 events = [
-    ["Strikes", 20],
-    ["Political tensions", 50],
-    ["Fuel shortage", 200],
-    ["War", 500]
+    ["Strikes", 10],
+    ["Political tensions", 30],
+    ["Fuel shortage", 100],
+    ["War", 300]
 ]
 
 class External(Process):
@@ -16,6 +18,7 @@ class External(Process):
 
     def run(self):
         while True:
+            t0 = time.time()
             for event in events:
                 if random.randint(1, event[1]) == 1:
                     print("[External]", event[0])
@@ -24,4 +27,4 @@ class External(Process):
                         os.kill(os.getppid(), signal.SIGUSR2)
                         time.sleep(0.01)
                     break
-            time.sleep(1)
+            time.sleep(LOOP_DURATION - (time.time() - t0))

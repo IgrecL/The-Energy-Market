@@ -40,14 +40,13 @@ class Home(Process):
         while True:
             if (time.time() - t0 >= self.LOOP_DURATION):
                 t0 = time.time()
-                print(" ")
                 self.manage_energy()
 
     def manage_energy(self):
         ti = time.time()
         coeff = 1 + (15 - self.temperature.value)/50
         self.energy += self.production - coeff * self.consumption
-        time.sleep(self.STEP0 - (time.time() - ti)) 
+        time.sleep(self.STEP0 - (time.time() - ti))
         t0 = time.time()
 
         # Has too much energy
