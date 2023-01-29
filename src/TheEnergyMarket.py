@@ -2,7 +2,7 @@ from classes import home, market, weather, external
 from multiprocessing import Value
 import random, time, sysv_ipc
 
-NUMBER_HOMES = 5
+NUMBER_HOMES = 2
 
 if __name__ == "__main__":
     port = random.randint(1000,2000)
@@ -21,8 +21,10 @@ if __name__ == "__main__":
     energy_queue = sysv_ipc.MessageQueue(port, sysv_ipc.IPC_CREAT)
 
     # Initialization of the homes
-    for i in range(int(NUMBER_HOMES)):
-        homes.append(home.Home(port, i, temperature, 0, 1000, 100, 10, 3))
+    for i in range(int(NUMBER_HOMES - 1)):
+        homes.append(home.Home(port, i, temperature, 15, 10, 2.0, 1.0, 2))
+
+    homes.append(home.Home(port, 1, temperature, 15, 1000, 1.0, 1.0, 2))
 
     # Starting all homes
     for i in range(NUMBER_HOMES):

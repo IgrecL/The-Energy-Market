@@ -26,16 +26,63 @@ class Market(Process):
         
         # Event handling
         self.max_threads = max_threads
-        self.new_event = False
+        self.sig1 = False
         self.event_counter = 0
 
         # Computations
         self.gamma = 0.9999
-        self.alpha = [0.001, 0.0001]
+        self.alpha = [0.01, 0.00001]
         self.f = [0.0, 0.0]
-        self.beta = [0.1, 0.3, 1, 3]
-        self.u = [0, 0, 0, 0]
+        self.beta = [0.01, 0.03, 0.1, 0.3, 1]
+        self.u = [0, 0, 0, 0, 0]
 
+    # Main function
+    def run(self):
+        
+        # Lauching child process external
+        external = External()
+        external.start()
+
+        socket_thread = threading.Thread(target = self.socket_thread)
+        price_thread = threading.Thread(target = self.price_thread)
+        socket_thread.start()
+        price_thread.start()
+        
+        # The main thread manages signals because a child thread cannot interpret signals
+        # Signal 1 is used to signal a new event and signal 2 is used a counter
+        def handler(sig, frame):
+            if sig == signal.SIGUSR1:
+                self.sig1 = True
+            if sig == signal.SIGUSR2:
+                self.event_counter += 1
+
+        signal.signal(signal.SIGUSR1, handler) 
+        signal.signal(signal.SIGUSR2, handler)
+
+        # New event handling loop
+        while True:
+            if self.sig1:
+                self.sig1 = False
+                while not self.sig1:
+                    pass
+                self.u[self.event_counter - 1] = 1
+                self.event_counter = 0
+                self.sig1 = False
+
+    # Thread managing connections with a thread pool of 'max_threads' threads 
+    def socket_thread(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+            server_socket.setblocking(False)
+            server_socket.bind((self.HOST, self.port))
+            server_socket.listen(self.max_threads)
+            with concurrent.futures.ThreadPoolExecutor(max_workers = self.max_threads) as executor:
+                while self.serve:
+                    # Connections handling
+                    readable, writable, error = select.select([server_socket], [], [], 1)
+                    if server_socket in readable:
+                        # If a home wants to connect
+                        client_socket, address = server_socket.accept()
+                        executor.submit(self.socket_handler, client_socket, address)
     
     # Handling connections with homes
     def socket_handler(self, client_socket, address):
@@ -58,59 +105,16 @@ class Market(Process):
             
             #print("[Market] Home disconnected:", address)
     
+    # Thread managing price changes
     def price_thread(self):
         while True:
-            print(" ")
-            # Random event handling
             t0 = time.time()
-            start_time = 99999999999
-            while (time.time() - t0 < STEP0):
-                if self.new_event == True:
-                    start_time = time.time()
-                    self.new_event = False
-                elif time.time() - start_time > self.EVENT_HANDLING:
-                    self.u[self.event_counter - 1] = 1
-                    self.event_counter = 0
-                    start_time = 99999999999
-            
-            # Price update
-            self.f[0] = 1/self.temperature.value
+            self.f[0] = 1/(self.temperature.value + 273.15)
             self.price = self.gamma * self.price + sum(self.alpha, self.f) + sum(self.beta, self.u)
-            self.u = [0, 0, 0, 0]
+            self.u = [0, 0, 0, 0, 0]
             self.f[1] = 0.0
-            print("[Market]","{:.3f}".format(self.price), "€/kWh")
-            time.sleep(1 - (time.time() - t0))
-
-    # Main function
-    def run(self):
-        
-        # Signal handling
-        def handler(sig, frame):
-            if sig == signal.SIGUSR1:
-                self.new_event = True
-            if sig == signal.SIGUSR2:
-                self.event_counter += 1
-
-        signal.signal(signal.SIGUSR1, handler) 
-        signal.signal(signal.SIGUSR2, handler)
-
-        # Lauching child process external
-        external = External()
-        external.start()
-
-        price_handler = threading.Thread(target = self.price_thread)
-        price_handler.start()
-
-        # Socket handling with a pool of 'max_threads' threads
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-            server_socket.setblocking(False)
-            server_socket.bind((self.HOST, self.port))
-            server_socket.listen(self.max_threads)
-            with concurrent.futures.ThreadPoolExecutor(max_workers = self.max_threads) as executor:
-                while self.serve:
-                    # Connections handling
-                    readable, writable, error = select.select([server_socket], [], [], 1)
-                    if server_socket in readable:
-                        # If a home wants to connect
-                        client_socket, address = server_socket.accept()
-                        executor.submit(self.socket_handler, client_socket, address)
+            if self.price <= 0.01:
+                self.price = 0.01
+            #print("[Market]","{:.3f}".format(self.price), "€/kWh")
+            if 1/24 - (time.time() - t0) > 0:
+                time.sleep(1/24 - (time.time() - t0))
