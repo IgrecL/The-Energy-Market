@@ -2,11 +2,11 @@ from multiprocessing import Process
 import time, signal, os, random
 
 events = [
-    ["Strikes", 10*24],
-    ["Political tensions", 30*24],
-    ["Fuel shortage", 100*24],
-    ["War", 300*24],
-    ["Worldwide pandemic", 1000*24]
+    ["Strikes", 20*24],
+    ["Political tensions", 50*24],
+    ["Fuel shortage", 200*24],
+    ["War", 500*24],
+    ["Worldwide pandemic", 2000*24]
 ]
 
 class External(Process):

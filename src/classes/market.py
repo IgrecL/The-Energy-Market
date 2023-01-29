@@ -18,11 +18,11 @@ class Market(Process):
     serve = True
     
     # Initialization of the market
-    def __init__(self, port, temperature, price_0, max_threads):
+    def __init__(self, port, temperature, price, max_threads):
         super().__init__()
         self.port = port
         self.temperature = temperature
-        self.price = price_0 
+        self.price = price 
         
         # Event handling
         self.max_threads = max_threads
@@ -88,19 +88,19 @@ class Market(Process):
     def socket_handler(self, client_socket, address):
         global serve
         with client_socket:
-            print("[Market] Home connected:", address)
+            #print("[Market] Home connected:", address)
             
             # Receiving what home wants to do
             action = client_socket.recv(1024).decode()
             
             # Home wants to buy energy 
             if action == "1":
-                client_socket.send(str(self.price).encode())
+                client_socket.send(str(self.price.value).encode())
                 self.f[1] += float(client_socket.recv(1024).decode())
             
             # Home wants to sell energy
             if action == "2":
-                client_socket.send(str(self.price).encode())
+                client_socket.send(str(self.price.value).encode())
                 self.f[1] -= float(client_socket.recv(1024).decode())
             
             #print("[Market] Home disconnected:", address)
@@ -110,11 +110,11 @@ class Market(Process):
         while True:
             t0 = time.time()
             self.f[0] = 1/(self.temperature.value + 273.15)
-            self.price = self.gamma * self.price + sum(self.alpha, self.f) + sum(self.beta, self.u)
+            self.price.value = self.gamma * self.price.value + sum(self.alpha, self.f) + sum(self.beta, self.u)
             self.u = [0, 0, 0, 0, 0]
             self.f[1] = 0.0
-            if self.price <= 0.01:
-                self.price = 0.01
-            #print("[Market]","{:.3f}".format(self.price), "€/kWh")
+            if self.price.value <= 0.01:
+                self.price.value = 0.01
+            #print("[Market]","{:.3f}".format(self.price.value), "€/kWh")
             if 1/24 - (time.time() - t0) > 0:
                 time.sleep(1/24 - (time.time() - t0))
