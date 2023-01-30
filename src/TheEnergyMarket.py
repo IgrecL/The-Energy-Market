@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 matplotlib.use("TkAgg")
 plt.style.use("dark_background")
 
-NUMBER_HOMES = 5 # int
-UPDATE_RATE = 4  # int
+NUMBER_HOMES = 2 # int
+UPDATE_RATE = 2  # int
 BG = "black"
 FG = "white"
 
@@ -51,21 +51,22 @@ if __name__ == "__main__":
     m = market.Market(port, temperature, price, 2)
     m.start()
 
-    # Creating the message queue
+    # Creating the energy and message queues
     energy_queue = sysv_ipc.MessageQueue(port, sysv_ipc.IPC_CREAT)
+    print_queue = sysv_ipc.MessageQueue(port+1, sysv_ipc.IPC_CREAT)
 
     # Initialization of the homes
     homes = []
     for i in range(NUMBER_HOMES):
         energy = Value('f', 15.0)
         money = Value('f', 1000.0)
-        homes.append(home.Home(port, i, temperature, energy, money, 1.0, 1.0, 2))
+        homes.append(home.Home(port, i, temperature, energy, money, round(random.uniform(1.0, 3.0), 2), 1.0, random.randint(1,3)))
 
     # Starting all homes
     for i in range(NUMBER_HOMES):
         homes[i].start()
-    
-    
+
+
 
 
     ### GUI 
@@ -123,7 +124,7 @@ if __name__ == "__main__":
 
     # Energy price plot
     price_fig = plt.figure(1)
-    price_fig.set_figwidth(17)
+    price_fig.set_figwidth(8)
     price_fig.set_figheight(4)
     plt.ion()
     x = [0]
@@ -132,14 +133,19 @@ if __name__ == "__main__":
     plt.xlim([0, 100])
     price_canvas = FigureCanvasTkAgg(price_fig, master = bottomgrid)
     price_widget = price_canvas.get_tk_widget()
-    price_widget.grid(row = 0, column = 0)
+    price_widget.grid(row = 0, column = 0, sticky = "w")
     
+    # Logs
+    logs = tk.Text(bottomgrid, bg = BG, fg = FG, width = 60, height = 12.5, font = ("Arial", 15))
+    logs.grid(row = 0, column = 1, sticky = "w")
+
+
     # Buttons
     buttons = tk.Frame(window, bg = BG)
     buttons.grid(row = 4, column = 0)
     quit_button = tk.Button(buttons, bg = BG, fg = FG, width = 10, text = "STOP", font = ("Cantarell", 20))
     quit_button.grid(row = 0, column = 0, pady = 30)
-    
+   
     # Updating all labels
     def update():
         A = time.time()
@@ -158,15 +164,20 @@ if __name__ == "__main__":
         # Updating global labels and graph
         time_label.config(text = day_string(round(t.value / 24)) + " " + form(t.value % 24) + ":00")
         temp_label.config(text = "Temperature: " + digit(temperature.value, 1) + " °C")
-        for i in range(1, UPDATE_RATE + 1):
-            x.append(x[-1] + 1)
-            last = y[-1]
-            y.append(((UPDATE_RATE - i) * last + i * price.value) / UPDATE_RATE)
+        x.append(x[-1] + 1)
+        y.append(price.value)
         plt.plot(x, y, "r")
         length = len(x)
         if length > 100:
             plt.xlim([length-100, length])
             plt.ylim(bounds(y))
+
+        # Updating log
+        try:
+            m, type = print_queue.receive(block = False)
+            logs.insert('1.0', m.decode() + "\n")
+        except sysv_ipc.BusyError:
+            pass
 
         window.after(round(UPDATE_RATE * 1000 / 24 - (time.time() - A)), update)
 

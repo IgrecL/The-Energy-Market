@@ -31,7 +31,7 @@ class Market(Process):
 
         # Computations
         self.gamma = 0.9999
-        self.alpha = [0.01, 0.00001]
+        self.alpha = [0.01, 0.0005]
         self.f = [0.0, 0.0]
         self.beta = [0.01, 0.03, 0.1, 0.3, 1]
         self.u = [0, 0, 0, 0, 0]

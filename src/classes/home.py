@@ -8,6 +8,10 @@ class Home(Process):
 
     HOST = "localhost"
     TRANSACTION = 0.02
+    
+    # Prints a message to the GUI log
+    def log(self, msg):
+        self.print.send(("[Home " + str(self.id) + "] " + msg).encode())
 
     # Initialization of a home
     def __init__(self, port, id, temperature, energy, money, prod, cons, policy):
@@ -16,8 +20,8 @@ class Home(Process):
         # Parameters
         self.port = port
         self.id = id
-        self.name = "[Home " + str(id) + "]"
         self.queue = sysv_ipc.MessageQueue(port)
+        self.print = sysv_ipc.MessageQueue(port+1)
         self.policy = policy
         
         # Shared values
@@ -40,7 +44,7 @@ class Home(Process):
         timeout = random.uniform(0.5, 1.5)
         while True:
             if self.energy.value <= 0:
-                print(self.name, "Is dead")
+                self.log("I am dead")
                 exit()
             if self.energy.value > self.energy_max and time.time() - t0 > timeout:
                 t0 = time.time()
@@ -88,6 +92,7 @@ class Home(Process):
     def give1(self):
         sent = self.energy.value - self.energy_max
         self.queue.send(str(sent).encode(), type = 1)
+        self.log("I sent " + digit(sent) + " kWh for free")
         self.energy.value -= sent
     
     # Giving energy for free if someone needs it
@@ -107,12 +112,12 @@ class Home(Process):
 
                     # Sending the available energy to the home through its id
                     if needed < self.energy.value - self.energy_max:
-                        self.queue.send(str(needed).encode(), type = 10 + getter_id)
-                        self.energy.value -= needed
+                        sent = needed
                     else:
                         sent = self.energy.value - self.energy_max
-                        self.queue.send(str(sent).encode(), type = 10 + getter_id)
-                        self.energy.value -= sent 
+                    self.queue.send(str(needed).encode(), type = 10 + getter_id)
+                    self.energy.value -= needed
+                    self.log("I sent " + digit(sent) + " kWh to Home " + str(getter_id))
                     received = True
                 except sysv_ipc.BusyError:
                     pass
@@ -134,11 +139,13 @@ class Home(Process):
             client_socket.send(digit(sold).encode())
             self.money.value += sold * price
             self.energy.value -= sold
+            self.log("I sold " + digit(sold) + " kWh to the market for " + digit(sold * price) + " €")
 
     def get1(self):
         try:
             m, t = self.queue.receive(block = False, type = 1)
             self.energy.value += float(m.decode())
+            self.log("I got " + digit(float(m.decode())) + " kWh for free")
             return False if self.energy.value >= 0 else True
         except sysv_ipc.BusyError:
             return True
@@ -155,6 +162,7 @@ class Home(Process):
             # Adding the energy received
             m, t = self.queue.receive(block = True, type = 10 + self.id)
             self.energy.value += float(m.decode())
+            self.log("I got " + digit(float(m.decode())) + " kWh from Home " + str(giver_id))
             
             # Checking whether the given energy is enough
             return True if self.energy.value >= self.energy_min else False
@@ -175,3 +183,4 @@ class Home(Process):
             client_socket.send(str(bought).encode())
             self.money.value -= bought * price
             self.energy.value += bought
+            self.log("I bought " + digit(bought) + " kWh from the market for " + digit(bought * price) + " €")
