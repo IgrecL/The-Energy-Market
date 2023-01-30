@@ -59,8 +59,9 @@ if __name__ == "__main__":
     homes = []
     for i in range(NUMBER_HOMES):
         energy = Value('f', 15.0)
-        money = Value('f', 100.0)
-        homes.append(home.Home(i, temperature, energy, money, round(random.uniform(1.0, 3.0), 2), 1.5, random.randint(1,3)))
+        money = Value('f', 500.0)
+        randint = random.randint(1, 4)
+        homes.append(home.Home(i, temperature, energy, money, randint, randint * random.uniform(0.4, 0.5), random.randint(1, 3)))
 
     # Starting all homes
     for i in range(NUMBER_HOMES):
@@ -87,15 +88,17 @@ if __name__ == "__main__":
     infobar.grid_rowconfigure(0, weight = 100)
     infobar.grid_columnconfigure(0, weight = 50)
     infobar.grid_columnconfigure(1, weight = 50)
-    time_label = tk.Label(infobar, bg = BG, fg = FG, text = "Day: 01/01/2023 01:00", font = ("Cantarell, 30"))  
+    time_label = tk.Label(infobar, bg = BG, fg = FG, text = "Day: 01/01/2023 01:00", font = ("Cantarell, 25"))  
     time_label.grid(row = 0, column = 0)
-    temp_label = tk.Label(infobar, bg = BG, fg = FG, text = "Temperature: 30.0 °C", font = ("Cantarell, 30"))  
+    temp_label = tk.Label(infobar, bg = BG, fg = FG, text = "Temperature: 30.0 °C", font = ("Cantarell, 25"))  
     temp_label.grid(row = 0, column = 1)
 
     # Homes grid
     homesgrid = tk.Frame(window, bg = BG)
     homesgrid.grid(row = 2, column = 0)
     house_labels = []
+    person_labels = []
+    name_labels = []
     policy_labels = []
     production_labels = []
     consumption_labels = []
@@ -103,20 +106,29 @@ if __name__ == "__main__":
     money_labels = []
     for i in range(NUMBER_HOMES):
         homesgrid.grid_columnconfigure(i, weight = round(100 / NUMBER_HOMES))
-        house = tk.Label(homesgrid, bg = BG, fg = "green", text = "🏠", font = ("Cantarell, 120"))
+        person_string = ""
+        for j in range(int(homes[i].production / 0.5)):
+            person_string += "☻" 
+        house = tk.Label(homesgrid, bg = BG, fg = "green", text = "🏠", font = ("Cantarell, 110"))
+        person = tk.Label(homesgrid, bg = BG, fg = "green", text = person_string, font = ("Cantarell, 15"))
+        name = tk.Label(homesgrid, bg = BG, fg = FG, text = "Home " + str(i), font = ("Cantarell, 15"))
         policy = tk.Label(homesgrid, bg = BG, fg = FG, text = "Policy " + str(homes[i].policy), font = ("Cantarell, 15"))
         production = tk.Label(homesgrid, bg = BG, fg = FG, text = "+ " + str(homes[i].production) + " kWh/h", font = ("Cantarell, 15"))
         consumption = tk.Label(homesgrid, bg = BG, fg = FG, text = "- 1.0 kWh/h", font = ("Cantarell, 15"))
         energy = tk.Label(homesgrid, bg = BG, fg = FG, text = "1068.35 kWh", font = ("Cantarell, 15"))
         money = tk.Label(homesgrid, bg = BG, fg = FG, text = "30.59 €", font = ("Cantarell, 15"))
         house.grid(row = 0, column = i, padx = 10)
-        policy.grid(row = 1, column = i, padx = 10)
-        production.grid(row = 2, column = i, padx = 10)
-        consumption.grid(row = 3, column = i, padx = 10)
-        energy.grid(row = 4, column = i, padx = 10)
-        money.grid(row = 5, column = i, padx = 10)
-        policy_labels.append(policy)
+        person.grid(row = 1, column = i, padx = 10)
+        name.grid(row = 2, column = i, padx = 10)
+        policy.grid(row = 3, column = i, padx = 10)
+        production.grid(row = 4, column = i, padx = 10)
+        consumption.grid(row = 5, column = i, padx = 10)
+        energy.grid(row = 6, column = i, padx = 10)
+        money.grid(row = 7, column = i, padx = 10)
         house_labels.append(house)
+        person_labels.append(person)
+        name_labels.append(name)
+        policy_labels.append(policy)
         production_labels.append(production)
         consumption_labels.append(consumption)
         energy_labels.append(energy)
@@ -165,7 +177,7 @@ if __name__ == "__main__":
     buttons = tk.Frame(window, bg = BG)
     buttons.grid(row = 4, column = 0)
     quit_button = tk.Button(buttons, bg = BG, fg = FG, width = 10, text = "STOP", font = ("Cantarell", 20), command = stop)
-    quit_button.grid(row = 0, column = 0, pady = 30)
+    quit_button.grid(row = 0, column = 0, pady = 10)
    
     # Updating all labels
     def update():
@@ -175,6 +187,8 @@ if __name__ == "__main__":
         for i in range(NUMBER_HOMES):
             if homes[i].energy.value <= 0:
                 house_labels[i].config(fg = "red")
+                person_labels[i].config(fg = "red")
+                name_labels[i].config(text = "-")
                 policy_labels[i].config(text = "-")
                 production_labels[i].config(text = "-")
                 consumption_labels[i].config(text = "-")
@@ -183,8 +197,10 @@ if __name__ == "__main__":
                 continue
             elif homes[i].energy.value < homes[i].energy_min:
                 house_labels[i].config(fg = "orange")
+                person_labels[i].config(fg = "orange")
             elif homes[i].energy.value > homes[i].energy_min:
                 house_labels[i].config(fg = "green")
+                person_labels[i].config(fg = "green")
             coeff = 1 + (15 - temperature.value) / 100
             consumption_labels[i].config(text = "- " + digit(coeff * homes[i].consumption, 2) + " kWh/h")
             energy_labels[i].config(text = digit(homes[i].energy.value, 2) + " kWh")

@@ -16,7 +16,7 @@ class Home(Process):
         self.print.send(("[Home " + str(self.id) + "] " + msg).encode())
 
     # Initialization of a home
-    def __init__(self, id, temperature, energy, money, prod, cons, policy):
+    def __init__(self, id, temperature, energy, money, people, cons, policy):
         super().__init__()
         
         # Parameters
@@ -32,7 +32,7 @@ class Home(Process):
         
         # Energy management
         self.stop = False
-        self.production = prod 
+        self.production = people * 0.5 
         self.consumption = cons
         self.energy_max = 30
         self.energy_min = 10
