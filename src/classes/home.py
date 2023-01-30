@@ -1,12 +1,14 @@
 from multiprocessing import Process, Value
-import sys, socket, time, sysv_ipc, random, threading
+import socket, time, sysv_ipc, random, threading
+
+HOST = "localhost"
+PORT = 1566
 
 def digit(float):
     return "{:.2f}".format(round(float, 2))
 
 class Home(Process):
 
-    HOST = "localhost"
     TRANSACTION = 0.02
     
     # Prints a message to the GUI log
@@ -14,14 +16,13 @@ class Home(Process):
         self.print.send(("[Home " + str(self.id) + "] " + msg).encode())
 
     # Initialization of a home
-    def __init__(self, port, id, temperature, energy, money, prod, cons, policy):
+    def __init__(self, id, temperature, energy, money, prod, cons, policy):
         super().__init__()
         
         # Parameters
-        self.port = port
         self.id = id
-        self.queue = sysv_ipc.MessageQueue(port)
-        self.print = sysv_ipc.MessageQueue(port+1)
+        self.queue = sysv_ipc.MessageQueue(600)
+        self.print = sysv_ipc.MessageQueue(700)
         self.policy = policy
         
         # Shared values
@@ -30,6 +31,7 @@ class Home(Process):
         self.money = money
         
         # Energy management
+        self.stop = False
         self.production = prod 
         self.consumption = cons
         self.energy_max = 30
@@ -45,7 +47,9 @@ class Home(Process):
         while True:
             if self.energy.value <= 0:
                 self.log("I am dead")
-                exit()
+                self.stop = True
+                update_thread.join()
+                exit(1)
             if self.energy.value > self.energy_max and time.time() - t0 > timeout:
                 t0 = time.time()
                 self.give(timeout)
@@ -55,10 +59,11 @@ class Home(Process):
 
     # Thread updating the energy each 'hour'
     def update_thread(self):
-        while True:
+        while not self.stop:
             t0 = time.time()
-            coeff = 1 + (15 - self.temperature.value)/100
-            self.energy.value += self.production - coeff * self.consumption
+            if self.energy.value > 0:
+                coeff = 1 + (15 - self.temperature.value)/100
+                self.energy.value += self.production - coeff * self.consumption
             if 1/24 - (time.time() - t0) > 0:
                 time.sleep(1/24 - (time.time() - t0))
         
@@ -128,7 +133,7 @@ class Home(Process):
     # Selling to the market
     def sell(self):
          with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-            client_socket.connect((self.HOST, self.port))
+            client_socket.connect((HOST, PORT))
             client_socket.send(b"2")
             sold = self.energy.value - self.energy_max
 
@@ -172,7 +177,7 @@ class Home(Process):
     # Buying to the market
     def buy(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-            client_socket.connect((self.HOST, self.port))
+            client_socket.connect((HOST, PORT))
             client_socket.send(b"1")
             
             # Receiving energy price in €/kWh

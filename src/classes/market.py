@@ -2,6 +2,8 @@ from multiprocessing import Process
 from classes.external import External
 import time, socket, select, concurrent.futures, signal, threading
 
+HOST = "localhost"
+PORT = 1566
 STEP0 = 0.1
 LOOP_DURATION = 1
 
@@ -13,16 +15,15 @@ def sum(l1, l2):
 
 class Market(Process):
 
-    HOST = "localhost"
     EVENT_HANDLING = 0.05
     serve = True
     
     # Initialization of the market
-    def __init__(self, port, temperature, price, max_threads):
+    def __init__(self, temperature, price, max_threads):
         super().__init__()
-        self.port = port
         self.temperature = temperature
-        self.price = price 
+        self.price = price
+        self.stop = False
         
         # Event handling
         self.max_threads = max_threads
@@ -33,7 +34,7 @@ class Market(Process):
         self.gamma = 0.9999
         self.alpha = [0.01, 0.0005]
         self.f = [0.0, 0.0]
-        self.beta = [0.01, 0.03, 0.1, 0.3, 1]
+        self.beta = [0.05, 0.1, 0.5, 1, 3]
         self.u = [0, 0, 0, 0, 0]
 
     # Main function
@@ -73,24 +74,22 @@ class Market(Process):
     def socket_thread(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
             server_socket.setblocking(False)
-            server_socket.bind((self.HOST, self.port))
+            server_socket.bind((HOST, PORT))
             server_socket.listen(self.max_threads)
             with concurrent.futures.ThreadPoolExecutor(max_workers = self.max_threads) as executor:
-                while self.serve:
+                while self.serve and not self.stop:
                     # Connections handling
                     readable, writable, error = select.select([server_socket], [], [], 1)
                     if server_socket in readable:
                         # If a home wants to connect
                         client_socket, address = server_socket.accept()
                         executor.submit(self.socket_handler, client_socket, address)
+        print("SERVER CLOSED")
     
     # Handling connections with homes
     def socket_handler(self, client_socket, address):
         global serve
         with client_socket:
-            #print("[Market] Home connected:", address)
-            
-            # Receiving what home wants to do
             action = client_socket.recv(1024).decode()
             
             # Home wants to buy energy 
@@ -103,11 +102,16 @@ class Market(Process):
                 client_socket.send(str(self.price.value).encode())
                 self.f[1] -= float(client_socket.recv(1024).decode())
             
-            #print("[Market] Home disconnected:", address)
-    
+            # Server shutdown
+            if action == "3":
+                self.stop = True
+                time.sleep(1)
+                client_socket.close()
+                exit(1)
+            
     # Thread managing price changes
     def price_thread(self):
-        while True:
+        while not self.stop:
             t0 = time.time()
             self.f[0] = 1/(self.temperature.value + 273.15)
             self.price.value = self.gamma * self.price.value + sum(self.alpha, self.f) + sum(self.beta, self.u)
@@ -115,6 +119,5 @@ class Market(Process):
             self.f[1] = 0.0
             if self.price.value <= 0.01:
                 self.price.value = 0.01
-            #print("[Market]","{:.3f}".format(self.price.value), "€/kWh")
             if 1/24 - (time.time() - t0) > 0:
                 time.sleep(1/24 - (time.time() - t0))

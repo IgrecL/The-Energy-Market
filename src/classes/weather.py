@@ -33,6 +33,7 @@ class Weather(Process):
                 day_amplitude = random.uniform(2.0, 5.0)
             
             self.temperature.value = day_mean + day_amplitude * math.fabs(math.sin((2 * math.pi * t) / 48))
-            time.sleep(1/24 - (time.time() - t0))
+            if 1/24 - (time.time() - t0) > 0:
+                time.sleep(1/24 - (time.time() - t0))
             self.t.value += 1
 

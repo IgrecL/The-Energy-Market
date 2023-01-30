@@ -1,6 +1,6 @@
 from classes import home, market, weather, external
 from multiprocessing import Value
-import random, time, sysv_ipc, os, matplotlib
+import random, time, sysv_ipc, matplotlib, socket, os, multiprocessing
 import tkinter as tk
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -8,7 +8,9 @@ import matplotlib.pyplot as plt
 matplotlib.use("TkAgg")
 plt.style.use("dark_background")
 
-NUMBER_HOMES = 2 # int
+HOST = "localhost"
+PORT = 1566
+NUMBER_HOMES = 3 # int
 UPDATE_RATE = 2  # int
 BG = "black"
 FG = "white"
@@ -38,29 +40,27 @@ def day_string(day):
     return "[" + form(day) + "/" + form(month+1) + "/" + str(year) + "]"
 
 if __name__ == "__main__":
-    port = random.randint(1000,2000)
-    
     # Shared memory between homes, the weather and the market
     temperature = Value('f', 10.0)
     t = Value('i', 0)
     weather = weather.Weather(temperature, t)
     weather.start()
     
+    # Creating the energy and message queues
+    energy_queue = sysv_ipc.MessageQueue(600, sysv_ipc.IPC_CREAT)
+    print_queue = sysv_ipc.MessageQueue(700, sysv_ipc.IPC_CREAT)
+
     # Initialization of the market
     price = Value('f', 1.74)
-    m = market.Market(port, temperature, price, 2)
+    m = market.Market(temperature, price, 2)
     m.start()
-
-    # Creating the energy and message queues
-    energy_queue = sysv_ipc.MessageQueue(port, sysv_ipc.IPC_CREAT)
-    print_queue = sysv_ipc.MessageQueue(port+1, sysv_ipc.IPC_CREAT)
 
     # Initialization of the homes
     homes = []
     for i in range(NUMBER_HOMES):
         energy = Value('f', 15.0)
-        money = Value('f', 1000.0)
-        homes.append(home.Home(port, i, temperature, energy, money, round(random.uniform(1.0, 3.0), 2), 1.0, random.randint(1,3)))
+        money = Value('f', 100.0)
+        homes.append(home.Home(i, temperature, energy, money, round(random.uniform(1.0, 3.0), 2), 1.5, random.randint(1,3)))
 
     # Starting all homes
     for i in range(NUMBER_HOMES):
@@ -96,6 +96,8 @@ if __name__ == "__main__":
     homesgrid = tk.Frame(window, bg = BG)
     homesgrid.grid(row = 2, column = 0)
     house_labels = []
+    policy_labels = []
+    production_labels = []
     consumption_labels = []
     energy_labels = []
     money_labels = []
@@ -113,7 +115,9 @@ if __name__ == "__main__":
         consumption.grid(row = 3, column = i, padx = 10)
         energy.grid(row = 4, column = i, padx = 10)
         money.grid(row = 5, column = i, padx = 10)
+        policy_labels.append(policy)
         house_labels.append(house)
+        production_labels.append(production)
         consumption_labels.append(consumption)
         energy_labels.append(energy)
         money_labels.append(money)
@@ -136,27 +140,52 @@ if __name__ == "__main__":
     price_widget.grid(row = 0, column = 0, sticky = "w")
     
     # Logs
-    logs = tk.Text(bottomgrid, bg = BG, fg = FG, width = 60, height = 12.5, font = ("Arial", 15))
+    logs = tk.Text(bottomgrid, bg = BG, fg = FG, width = 65, height = 12.5, font = ("Arial", 15))
     logs.grid(row = 0, column = 1, sticky = "w")
-
+    
+    def stop():
+        window.destroy()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            client_socket.connect((HOST, PORT))
+            client_socket.send(b"3")
+        time.sleep(1)
+        energy_queue.remove()
+        print_queue.remove()
+        print("QUEUES CLOSED")
+        for child in multiprocessing.active_children():
+            print('Terminating', child)
+            child.terminate()
+            time.sleep(0.1)
+        for i in range(NUMBER_HOMES):
+            homes[i].join()
+        print("CORRECTLY CLOSED")
+        exit(0)
 
     # Buttons
     buttons = tk.Frame(window, bg = BG)
     buttons.grid(row = 4, column = 0)
-    quit_button = tk.Button(buttons, bg = BG, fg = FG, width = 10, text = "STOP", font = ("Cantarell", 20))
+    quit_button = tk.Button(buttons, bg = BG, fg = FG, width = 10, text = "STOP", font = ("Cantarell", 20), command = stop)
     quit_button.grid(row = 0, column = 0, pady = 30)
    
     # Updating all labels
     def update():
         A = time.time()
-
+        
         # Updating home labels
         for i in range(NUMBER_HOMES):
-            if homes[i].energy.value < homes[i].energy_min:
+            if homes[i].energy.value <= 0:
+                house_labels[i].config(fg = "red")
+                policy_labels[i].config(text = "-")
+                production_labels[i].config(text = "-")
+                consumption_labels[i].config(text = "-")
+                energy_labels[i].config(text = "-")
+                money_labels[i].config(text = "-")
+                continue
+            elif homes[i].energy.value < homes[i].energy_min:
                 house_labels[i].config(fg = "orange")
             elif homes[i].energy.value > homes[i].energy_min:
                 house_labels[i].config(fg = "green")
-            coeff = 1 + (15 - temperature.value)/100
+            coeff = 1 + (15 - temperature.value) / 100
             consumption_labels[i].config(text = "- " + digit(coeff * homes[i].consumption, 2) + " kWh/h")
             energy_labels[i].config(text = digit(homes[i].energy.value, 2) + " kWh")
             money_labels[i].config(text = digit(homes[i].money.value, 2) + " €")
