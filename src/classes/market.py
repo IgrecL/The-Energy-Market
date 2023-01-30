@@ -1,11 +1,9 @@
 from multiprocessing import Process
 from classes.external import External
-import time, socket, select, concurrent.futures, signal, threading
+import time, socket, select, concurrent.futures, signal, threading, sys
 
 HOST = "localhost"
 PORT = 1566
-STEP0 = 0.1
-LOOP_DURATION = 1
 
 def sum(l1, l2):
     sum = 0
@@ -14,9 +12,6 @@ def sum(l1, l2):
     return sum
 
 class Market(Process):
-
-    EVENT_HANDLING = 0.05
-    serve = True
     
     # Initialization of the market
     def __init__(self, temperature, price, max_threads):
@@ -77,14 +72,14 @@ class Market(Process):
             server_socket.bind((HOST, PORT))
             server_socket.listen(self.max_threads)
             with concurrent.futures.ThreadPoolExecutor(max_workers = self.max_threads) as executor:
-                while self.serve and not self.stop:
+                while not self.stop:
                     # Connections handling
                     readable, writable, error = select.select([server_socket], [], [], 1)
                     if server_socket in readable:
                         # If a home wants to connect
                         client_socket, address = server_socket.accept()
                         executor.submit(self.socket_handler, client_socket, address)
-        print("SERVER CLOSED")
+        print("SOCKET THREAD CLOSED")
     
     # Handling connections with homes
     def socket_handler(self, client_socket, address):
@@ -105,9 +100,10 @@ class Market(Process):
             # Server shutdown
             if action == "3":
                 self.stop = True
-                time.sleep(1)
+                time.sleep(1.5)
+                print("SERVER SHUTDOWN")
                 client_socket.close()
-                exit(1)
+                sys.exit(1)
             
     # Thread managing price changes
     def price_thread(self):
@@ -121,3 +117,4 @@ class Market(Process):
                 self.price.value = 0.01
             if 1/24 - (time.time() - t0) > 0:
                 time.sleep(1/24 - (time.time() - t0))
+

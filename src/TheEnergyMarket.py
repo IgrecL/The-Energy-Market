@@ -160,7 +160,7 @@ if __name__ == "__main__":
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
             client_socket.connect((HOST, PORT))
             client_socket.send(b"3")
-        time.sleep(1)
+        time.sleep(2)
         energy_queue.remove()
         print_queue.remove()
         print("QUEUES CLOSED")
@@ -185,7 +185,7 @@ if __name__ == "__main__":
         
         # Updating home labels
         for i in range(NUMBER_HOMES):
-            if homes[i].energy.value <= 0:
+            if homes[i].energy.value <= 0 and homes[i].money.value < 1:
                 house_labels[i].config(fg = "red")
                 person_labels[i].config(fg = "red")
                 name_labels[i].config(text = "-")

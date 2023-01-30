@@ -13,7 +13,6 @@ class External(Process):
 
     def __init__(self):
         super().__init__()
-        self.event = False 
         self.print = sysv_ipc.MessageQueue(700)
 
     def run(self):

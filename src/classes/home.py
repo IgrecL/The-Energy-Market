@@ -45,7 +45,7 @@ class Home(Process):
         t0 = time.time()
         timeout = random.uniform(0.5, 1.5)
         while True:
-            if self.energy.value <= 0:
+            if self.energy.value <= 0 and self.money.value < 1:
                 self.log("I am dead")
                 self.stop = True
                 update_thread.join()
