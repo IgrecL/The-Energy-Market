@@ -1,6 +1,6 @@
 from classes import home, market, weather, external
 from multiprocessing import Value
-import random, time, sysv_ipc, matplotlib, socket, os, multiprocessing
+import random, time, sysv_ipc, matplotlib, socket,multiprocessing, sys
 import tkinter as tk
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -40,6 +40,9 @@ def day_string(day):
     return "[" + form(day) + "/" + form(month+1) + "/" + str(year) + "]"
 
 if __name__ == "__main__":
+
+
+
     # Shared memory between homes, the weather and the market
     global speed
     speed = Value('f', 0.5)
@@ -57,13 +60,34 @@ if __name__ == "__main__":
     m = market.Market(speed, temperature, price, 2)
     m.start()
 
-    # Initialization of the homes
+    # Preset selection
+    preset = sys.argv[1]
     homes = []
-    for i in range(NUMBER_HOMES):
-        energy = Value('f', 15.0)
+    if preset == "1":
+        energy = Value('f', 30.0)
+        money = Value('f', 100.0)
+        homes.append(home.Home(speed, 0, temperature, energy, money, 1.5, 2, 2))
+        energy = Value('f', 20.0)
         money = Value('f', 500.0)
-        randint = random.randint(1, 4)
-        homes.append(home.Home(speed, i, temperature, energy, money, randint, randint * random.uniform(0.4, 0.5), random.randint(1, 3)))
+        homes.append(home.Home(speed, 1, temperature, energy, money, 2.0, 4, 3))
+    elif preset == "2":
+        energy = Value('f', 30.0)
+        money = Value('f', 100.0)
+        homes.append(home.Home(speed, 0, temperature, energy, money, 3.0, 1, 1))
+        energy = Value('f', 20.0)
+        money = Value('f', 100.0)
+        homes.append(home.Home(speed, 1, temperature, energy, money, 1.2, 3, 3))
+        energy = Value('f', 20.0)
+        money = Value('f', 100.0)
+        homes.append(home.Home(speed, 2, temperature, energy, money, 0.8, 2, 3))
+    elif preset == "3":
+        print("")
+    else:
+        for i in range(NUMBER_HOMES):
+            energy = Value('f', 15.0)
+            money = Value('f', 500.0)
+            randint = random.randint(1, 4)
+            homes.append(home.Home(speed, i, temperature, energy, money, randint * random.uniform(0.5, 0.6), randint, random.randint(1, 3)))
 
     # Starting all homes
     for i in range(NUMBER_HOMES):
@@ -109,7 +133,7 @@ if __name__ == "__main__":
     for i in range(NUMBER_HOMES):
         homesgrid.grid_columnconfigure(i, weight = round(100 / NUMBER_HOMES))
         person_string = ""
-        for j in range(int(homes[i].production / 0.5)):
+        for j in range(int(homes[i].consumption / 0.5)):
             person_string += "☻" 
         house = tk.Label(homesgrid, bg = BG, fg = "green", text = "🏠", font = ("Cantarell, 110"))
         person = tk.Label(homesgrid, bg = BG, fg = "green", text = person_string, font = ("Cantarell, 15"))

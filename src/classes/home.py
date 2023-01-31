@@ -16,7 +16,7 @@ class Home(Process):
         self.print.send(("[Home " + str(self.id) + "] " + msg).encode())
 
     # Initialization of a home
-    def __init__(self, speed, id, temperature, energy, money, people, cons, policy):
+    def __init__(self, speed, id, temperature, energy, money, prod, people, policy):
         super().__init__()
         
         # Parameters
@@ -33,8 +33,8 @@ class Home(Process):
         
         # Energy management
         self.stop = False
-        self.production = people * 0.5 
-        self.consumption = cons
+        self.production = prod
+        self.consumption = people * 0.5
         self.energy_max = 30
         self.energy_min = 10
         self.energy_margin = 10
@@ -104,7 +104,7 @@ class Home(Process):
     # Giving energy for free if someone needs it
     def give2(self, timeout):
         t0 = time.time()
-        while time.time() - t0 < timeout - self.TRANSACTION:
+        while time.time() - t0 < timeout - self.TRANSACTION and self.energy.value > self.energy_max:
             self.queue.send(str(self.id).encode(), type = 2)
             received = False
 
@@ -121,8 +121,8 @@ class Home(Process):
                         sent = needed
                     else:
                         sent = self.energy.value - self.energy_max
-                    self.queue.send(str(needed).encode(), type = 10 + getter_id)
-                    self.energy.value -= needed
+                    self.queue.send(str(sent).encode(), type = 10 + getter_id)
+                    self.energy.value -= sent
                     self.log("I sent " + digit(sent) + " kWh to Home " + str(getter_id))
                     received = True
                 except sysv_ipc.BusyError:
@@ -152,9 +152,8 @@ class Home(Process):
             m, t = self.queue.receive(block = False, type = 1)
             self.energy.value += float(m.decode())
             self.log("I got " + digit(float(m.decode())) + " kWh for free")
-            return False if self.energy.value >= 0 else True
         except sysv_ipc.BusyError:
-            return True
+            pass
 
     def get2(self):
         try:

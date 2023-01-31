@@ -84,7 +84,6 @@ class Market(Process):
     
     # Handling connections with homes
     def socket_handler(self, client_socket, address):
-        global serve
         with client_socket:
             action = client_socket.recv(1024).decode()
             
