@@ -14,8 +14,9 @@ def sum(l1, l2):
 class Market(Process):
     
     # Initialization of the market
-    def __init__(self, temperature, price, max_threads):
+    def __init__(self, speed, temperature, price, max_threads):
         super().__init__()
+        self.speed = speed
         self.temperature = temperature
         self.price = price
         self.stop = False
@@ -36,7 +37,7 @@ class Market(Process):
     def run(self):
         
         # Lauching child process external
-        external = External()
+        external = External(self.speed)
         external.start()
 
         socket_thread = threading.Thread(target = self.socket_thread)
@@ -115,6 +116,6 @@ class Market(Process):
             self.f[1] = 0.0
             if self.price.value <= 0.01:
                 self.price.value = 0.01
-            if 1/24 - (time.time() - t0) > 0:
-                time.sleep(1/24 - (time.time() - t0))
+            if 1 / (24 / self.speed.value) - (time.time() - t0) > 0:
+                time.sleep(1 / (24 * self.speed.value) - (time.time() - t0))
 

@@ -16,7 +16,7 @@ class Home(Process):
         self.print.send(("[Home " + str(self.id) + "] " + msg).encode())
 
     # Initialization of a home
-    def __init__(self, id, temperature, energy, money, people, cons, policy):
+    def __init__(self, speed, id, temperature, energy, money, people, cons, policy):
         super().__init__()
         
         # Parameters
@@ -26,6 +26,7 @@ class Home(Process):
         self.policy = policy
         
         # Shared values
+        self.speed = speed
         self.temperature = temperature
         self.energy = energy
         self.money = money
@@ -43,7 +44,7 @@ class Home(Process):
         update_thread = threading.Thread(target = self.update_thread)
         update_thread.start()
         t0 = time.time()
-        timeout = random.uniform(0.5, 1.5)
+        timeout = random.uniform(0.5, 1.5) / self.speed.value
         while True:
             if self.energy.value <= 0 and self.money.value < 1:
                 self.log("I am dead")
@@ -53,7 +54,7 @@ class Home(Process):
             if self.energy.value > self.energy_max and time.time() - t0 > timeout:
                 t0 = time.time()
                 self.give(timeout)
-                timeout = random.uniform(0.5, 1.5)
+                timeout = random.uniform(0.5, 1.5) / self.speed.value
             if self.energy.value < self.energy_min - 1:
                 self.get()
 
@@ -64,8 +65,8 @@ class Home(Process):
             if self.energy.value > 0:
                 coeff = 1 + (15 - self.temperature.value)/100
                 self.energy.value += self.production - coeff * self.consumption
-            if 1/24 - (time.time() - t0) > 0:
-                time.sleep(1/24 - (time.time() - t0))
+            if 1 / (24 * self.speed.value) - (time.time() - t0) > 0:
+                time.sleep(1 / (24 * self.speed.value) - (time.time() - t0))
         
     def give(self, timeout):
         if self.policy == 1:
@@ -86,7 +87,7 @@ class Home(Process):
         if (self.energy.value < self.energy_min):
             t0 = time.time()
             enough = False
-            while not enough and time.time() - t0 < random.uniform(0.5, 1.0):
+            while not enough and time.time() - t0 < random.uniform(0.5, 1.0) / self.speed.value:
                 enough = self.get2()
 
         # Buying to the market

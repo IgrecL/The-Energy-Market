@@ -10,8 +10,8 @@ plt.style.use("dark_background")
 
 HOST = "localhost"
 PORT = 1566
+UPDATE_RATE = 1  # int
 NUMBER_HOMES = 3 # int
-UPDATE_RATE = 2  # int
 BG = "black"
 FG = "white"
 
@@ -41,9 +41,11 @@ def day_string(day):
 
 if __name__ == "__main__":
     # Shared memory between homes, the weather and the market
+    global speed
+    speed = Value('f', 0.5)
     temperature = Value('f', 10.0)
     t = Value('i', 0)
-    weather = weather.Weather(temperature, t)
+    weather = weather.Weather(speed, temperature, t)
     weather.start()
     
     # Creating the energy and message queues
@@ -52,7 +54,7 @@ if __name__ == "__main__":
 
     # Initialization of the market
     price = Value('f', 1.74)
-    m = market.Market(temperature, price, 2)
+    m = market.Market(speed, temperature, price, 2)
     m.start()
 
     # Initialization of the homes
@@ -61,7 +63,7 @@ if __name__ == "__main__":
         energy = Value('f', 15.0)
         money = Value('f', 500.0)
         randint = random.randint(1, 4)
-        homes.append(home.Home(i, temperature, energy, money, randint, randint * random.uniform(0.4, 0.5), random.randint(1, 3)))
+        homes.append(home.Home(speed, i, temperature, energy, money, randint, randint * random.uniform(0.4, 0.5), random.randint(1, 3)))
 
     # Starting all homes
     for i in range(NUMBER_HOMES):
@@ -155,6 +157,17 @@ if __name__ == "__main__":
     logs = tk.Text(bottomgrid, bg = BG, fg = FG, width = 65, height = 12.5, font = ("Arial", 15))
     logs.grid(row = 0, column = 1, sticky = "w")
     
+    def change_speed():
+        if speed.value == 0.50:
+            speed.value = 1.00 
+            speed_button.config(text = "SPEED x1.00")
+        elif speed.value == 1.00:
+            speed.value = 0.25 
+            speed_button.config(text = "SPEED x0.25")
+        elif speed.value == 0.25:
+            speed.value = 0.50
+            speed_button.config(text = "SPEED x0.50")
+
     def stop():
         window.destroy()
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
@@ -176,8 +189,10 @@ if __name__ == "__main__":
     # Buttons
     buttons = tk.Frame(window, bg = BG)
     buttons.grid(row = 4, column = 0)
+    speed_button = tk.Button(buttons, bg = BG, fg = FG, width = 10, text = "SPEED x0.50", font = ("Cantarell", 20), command = change_speed)
+    speed_button.grid(row = 0, column = 0, padx = 10, pady = 10)
     quit_button = tk.Button(buttons, bg = BG, fg = FG, width = 10, text = "STOP", font = ("Cantarell", 20), command = stop)
-    quit_button.grid(row = 0, column = 0, pady = 10)
+    quit_button.grid(row = 0, column = 1, padx = 10, pady = 10)
    
     # Updating all labels
     def update():
@@ -224,7 +239,7 @@ if __name__ == "__main__":
         except sysv_ipc.BusyError:
             pass
 
-        window.after(round(UPDATE_RATE * 1000 / 24 - (time.time() - A)), update)
+        window.after(round(UPDATE_RATE * 1000 / (24 * speed.value) - (time.time() - A)), update)
 
     update()
     window.mainloop()

@@ -3,8 +3,9 @@ import time, math, random
 
 class Weather(Process):
 
-    def __init__(self, temperature, t):
+    def __init__(self, speed, temperature, t):
         super().__init__()
+        self.speed = speed
         self.temperature = temperature
         self.t = t
 
@@ -33,7 +34,7 @@ class Weather(Process):
                 day_amplitude = random.uniform(2.0, 5.0)
             
             self.temperature.value = day_mean + day_amplitude * math.fabs(math.sin((2 * math.pi * t) / 48))
-            if 1/24 - (time.time() - t0) > 0:
-                time.sleep(1/24 - (time.time() - t0))
+            if 1 / (24 * self.speed.value) - (time.time() - t0) > 0:
+                time.sleep(1 / (24 * self.speed.value) - (time.time() - t0))
             self.t.value += 1
 

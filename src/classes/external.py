@@ -11,9 +11,10 @@ events = [
 
 class External(Process):
 
-    def __init__(self):
+    def __init__(self, speed):
         super().__init__()
         self.print = sysv_ipc.MessageQueue(700)
+        self.speed = speed
 
     def run(self):
         while True:
@@ -27,5 +28,5 @@ class External(Process):
                         time.sleep(0.0001)
                     os.kill(os.getppid(), signal.SIGUSR1)
                     break
-            if 1/24 - (time.time() - t0) > 0:
-                time.sleep(1/24 - (time.time() - t0))
+            if 1 / (24 * self.speed.value) - (time.time() - t0) > 0:
+                time.sleep(1 / (24 * self.speed.value) - (time.time() - t0))
