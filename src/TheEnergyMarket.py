@@ -11,7 +11,6 @@ plt.style.use("dark_background")
 HOST = "localhost"
 PORT = 1566
 UPDATE_RATE = 1  # int
-NUMBER_HOMES = 3 # int
 BG = "black"
 FG = "white"
 
@@ -41,8 +40,6 @@ def day_string(day):
 
 if __name__ == "__main__":
 
-
-
     # Shared memory between homes, the weather and the market
     global speed
     speed = Value('f', 0.5)
@@ -61,38 +58,48 @@ if __name__ == "__main__":
     m.start()
 
     # Preset selection
-    preset = sys.argv[1]
+    try:
+        preset = sys.argv[1]
+    except:
+        preset = ""
     homes = []
     if preset == "1":
-        energy = Value('f', 30.0)
-        money = Value('f', 100.0)
-        homes.append(home.Home(speed, 0, temperature, energy, money, 1.5, 2, 2))
-        energy = Value('f', 20.0)
-        money = Value('f', 500.0)
-        homes.append(home.Home(speed, 1, temperature, energy, money, 2.0, 4, 3))
+        number_homes = 2
+        homes.append(home.Home(speed, 0, temperature, Value('f', 30.0), Value('f', 100.0), 1.5, 2, 2))
+        homes.append(home.Home(speed, 1, temperature, Value('f', 20.0), Value('f', 500.0), 2.0, 4, 3))
     elif preset == "2":
-        energy = Value('f', 30.0)
-        money = Value('f', 100.0)
-        homes.append(home.Home(speed, 0, temperature, energy, money, 3.0, 1, 1))
-        energy = Value('f', 20.0)
-        money = Value('f', 100.0)
-        homes.append(home.Home(speed, 1, temperature, energy, money, 1.2, 3, 3))
-        energy = Value('f', 20.0)
-        money = Value('f', 100.0)
-        homes.append(home.Home(speed, 2, temperature, energy, money, 0.8, 2, 3))
+        number_homes = 3
+        homes.append(home.Home(speed, 0, temperature, Value('f', 30.0), Value('f', 100.0), 3.0, 1, 1))
+        homes.append(home.Home(speed, 1, temperature, Value('f', 20.0), Value('f', 100.0), 1.2, 3, 3))
+        homes.append(home.Home(speed, 2, temperature, Value('f', 20.0), Value('f', 100.0), 0.8, 2, 3))
     elif preset == "3":
-        print("")
+        number_homes = 3
+        homes.append(home.Home(speed, 0, temperature, Value('f', 30.0), Value('f', 100.0), 0.8, 2, 3))
+        homes.append(home.Home(speed, 1, temperature, Value('f', 30.0), Value('f', 100.0), 1.2, 2, 3))
+        homes.append(home.Home(speed, 2, temperature, Value('f', 30.0), Value('f', 100.0), 0.9, 2, 3))
+    elif preset == "4":
+        number_homes = 10
+        homes.append(home.Home(speed, 0, temperature, Value('f', 20.0), Value('f', 100.0), 1.0, 2, 1))
+        homes.append(home.Home(speed, 1, temperature, Value('f', 20.0), Value('f', 100.0), 1.5, 3, 1))
+        homes.append(home.Home(speed, 2, temperature, Value('f', 20.0), Value('f', 100.0), 0.9, 1, 1))
+        homes.append(home.Home(speed, 3, temperature, Value('f', 20.0), Value('f', 100.0), 1.0, 2, 2))
+        homes.append(home.Home(speed, 4, temperature, Value('f', 20.0), Value('f', 100.0), 1.5, 3, 2))
+        homes.append(home.Home(speed, 5, temperature, Value('f', 20.0), Value('f', 100.0), 0.9, 2, 2))
+        homes.append(home.Home(speed, 6, temperature, Value('f', 20.0), Value('f', 100.0), 0.5, 1, 2))
+        homes.append(home.Home(speed, 7, temperature, Value('f', 20.0), Value('f', 100.0), 2.4, 4, 3))
+        homes.append(home.Home(speed, 8, temperature, Value('f', 20.0), Value('f', 100.0), 1.4, 3, 3))
+        homes.append(home.Home(speed, 9, temperature, Value('f', 20.0), Value('f', 100.0), 1.0, 2, 3))
     else:
-        for i in range(NUMBER_HOMES):
+        number_homes = random.randint(4, 6)
+        for i in range(number_homes):
             energy = Value('f', 15.0)
-            money = Value('f', 500.0)
+            money = Value('f', 100.0)
             randint = random.randint(1, 4)
-            homes.append(home.Home(speed, i, temperature, energy, money, randint * random.uniform(0.5, 0.6), randint, random.randint(1, 3)))
+            homes.append(home.Home(speed, i, temperature, energy, money, (randint * random.randint(5, 6)) / 10, randint, random.randint(1, 3)))
 
     # Starting all homes
-    for i in range(NUMBER_HOMES):
+    for i in range(number_homes):
         homes[i].start()
-
 
 
 
@@ -130,8 +137,8 @@ if __name__ == "__main__":
     consumption_labels = []
     energy_labels = []
     money_labels = []
-    for i in range(NUMBER_HOMES):
-        homesgrid.grid_columnconfigure(i, weight = round(100 / NUMBER_HOMES))
+    for i in range(number_homes):
+        homesgrid.grid_columnconfigure(i, weight = round(100 / number_homes))
         person_string = ""
         for j in range(int(homes[i].consumption / 0.5)):
             person_string += "☻" 
@@ -205,7 +212,7 @@ if __name__ == "__main__":
             print('Terminating', child)
             child.terminate()
             time.sleep(0.1)
-        for i in range(NUMBER_HOMES):
+        for i in range(number_homes):
             homes[i].join()
         print("CORRECTLY CLOSED")
         exit(0)
@@ -223,7 +230,7 @@ if __name__ == "__main__":
         A = time.time()
         
         # Updating home labels
-        for i in range(NUMBER_HOMES):
+        for i in range(number_homes):
             if homes[i].energy.value <= 0 and homes[i].money.value < 1:
                 house_labels[i].config(fg = "red")
                 person_labels[i].config(fg = "red")
@@ -267,4 +274,3 @@ if __name__ == "__main__":
 
     update()
     window.mainloop()
-

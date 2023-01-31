@@ -1,6 +1,6 @@
 from multiprocessing import Process
 from classes.external import External
-import time, socket, select, concurrent.futures, signal, threading, sys
+import time, socket, select, concurrent.futures, signal, threading, sys, multiprocessing
 
 HOST = "localhost"
 PORT = 1566
@@ -100,8 +100,11 @@ class Market(Process):
             # Server shutdown
             if action == "3":
                 self.stop = True
-                time.sleep(1.5)
+                time.sleep(2)
                 print("SERVER SHUTDOWN")
+                for child in multiprocessing.active_children():
+                    print('Terminating', child)
+                    child.terminate()
                 client_socket.close()
                 sys.exit(1)
             
